@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "events": [
+    {
+      "id": "office-command",
+      "at": "2026-11-06T06:53:51.867193+00:00",
+      "type": "command",
+      "actor": "chief-of-staff",
+      "text": "Ryder asked for the office to show real commands, work and meetings.",
+      "to": "all-desks"
+    },
+    {
+      "id": "rivulet-meeting",
+      "at": "2026-11-06T06:53:51.867347+00:00",
+      "type": "schedule",
+      "actor": "system",
+      "text": "Weekly Rivulet progress meeting scheduled with Brook, Game Designer and App Designer for Fridays around 10am MT.",
+      "to": "meeting-room",
+      "startsAt": "2026-11-06T10:00:00-07:00"
+    },
+    {
+      "id": "event-cfb4146a018c4f8a834e8c6000720027",
+      "at": "2026-11-06T07:04:33.391718+00:00",
+      "type": "command",
+      "actor": "app-designer",
+      "to": "chief-of-staff",
+      "text": "Ryder assigned App Designer to own the real-activity 3D office, supported serving and an externally accessible read-only link."
+    },
+    {
+      "id": "event-fdff32a4a8384d6486ef20f36358729d",
+      "at": "2026-11-06T07:04:33.425018+00:00",
+      "type": "message",
+      "actor": "chief-of-staff",
+      "to": "app-designer",
+      "text": "Chief of Staff passed on the office ownership request and reported the previous browser and Cloudflare routing failures for investigation."
+    },
+    {
+      "id": "event-3d78b4e8eeed4b919c552683c30447b9",
+      "at": "2026-11-06T07:11:46.795396+00:00",
+      "type": "working",
+      "actor": "trading",
+      "to": "all-desks",
+      "text": "Started: exp_I RH low-usage check"
+    },
+    {
+      "id": "event-1f28f8d4d241426391b276bf7d12d46f",
+      "at": "2026-11-06T07:12:01.790770+00:00",
+      "type": "complete",
+      "actor": "app-designer",
+      "to": "all-desks",
+      "text": "Completed: Built and statically verified the real-activity office and locked-down dual-stack read-only server; browser rendering and public phone link remain blocked at box network routing, awaiting supported recovery choice."
+    },
+    {
+      "id": "event-b2a5d294373e43f19d75b127ef4962d1",
+      "at": "2026-11-06T07:14:17.935462+00:00",
+      "type": "complete",
+      "actor": "trading",
+      "to": "all-desks",
+      "text": "Completed: exp_I check: IDLE FLAT cash$12.36 eq$36.23 helpers up"
+    },
+    {
+      "id": "event-108cd490558a40debd5188bda6176554",
+      "at": "2026-11-06T20:03:17.111590+00:00",
+      "type": "working",
+      "actor": "game-designer",
+      "to": "all-desks",
+      "text": "Started: Finish and integrate Rivulet visual fixes, validate clearer water/tree/caves, ship new APK"
+    }
+  ],
+  "updatedAt": "2026-11-06T20:03:17.111590+00:00"
+}

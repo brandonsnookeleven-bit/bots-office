@@ -1,0 +1,2218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rivulet Team Office</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0a1210; font-family: "Segoe UI", system-ui, sans-serif; }
+  #c { display: block; width: 100%; height: 100%; cursor: grab; }
+  #c:active { cursor: grabbing; }
+  #hud {
+    position: fixed; left: 16px; top: 14px; z-index: 10;
+    color: #e8f0ea; pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,.65);
+  }
+  #hud h1 {
+    font-size: 18px; font-weight: 650; letter-spacing: .04em;
+    color: #b8e0c8;
+  }
+  #hud .hint { font-size: 12px; opacity: .78; margin-top: 3px; color: #9ec4b0; }
+  #hud .status { font-size: 11px; opacity: .55; margin-top: 6px; color: #7a9a88; }
+  #label {
+    position: fixed; z-index: 11; display: none;
+    padding: 8px 14px; border-radius: 10px;
+    background: rgba(12, 22, 18, .88);
+    border: 1px solid rgba(140, 100, 200, .45);
+    color: #e6f2ea; font-size: 13px; font-weight: 600;
+    pointer-events: none;
+    box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 18px rgba(120,70,200,.18);
+    transform: translate(-50%, -120%);
+    white-space: nowrap;
+  }
+  #label .sub { display: block; font-size: 11px; font-weight: 400; opacity: .7; margin-top: 2px; }
+
+  #office-panels {
+    position: fixed; right: 12px; top: 12px; z-index: 20;
+    width: min(340px, calc(100vw - 24px));
+    max-height: calc(100vh - 24px);
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  #office-panels > * { pointer-events: auto; }
+  .op-card {
+    background: rgba(10, 20, 16, .92);
+    border: 1px solid rgba(140, 180, 150, .28);
+    border-radius: 12px;
+    color: #e6f2ea;
+    box-shadow: 0 8px 28px rgba(0,0,0,.45);
+    overflow: hidden;
+  }
+  .op-card header {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px; padding: 9px 12px 7px;
+    border-bottom: 1px solid rgba(140, 180, 150, .15);
+  }
+  .op-card header h2 {
+    font-size: 13px; font-weight: 650; letter-spacing: .02em;
+    color: #b8e0c8; margin: 0;
+  }
+  .op-card header .meta {
+    font-size: 10px; color: #7a9a88; font-weight: 400; margin-top: 2px;
+  }
+  .op-card button.op-toggle {
+    appearance: none; border: 1px solid rgba(140,180,150,.35);
+    background: rgba(30,50,42,.7); color: #cfe8d8;
+    border-radius: 8px; padding: 4px 9px; font-size: 11px; cursor: pointer;
+  }
+  .op-card button.op-toggle:hover { background: rgba(45,70,58,.85); }
+  .op-card .op-body { padding: 8px 12px 10px; overflow: auto; max-height: 38vh; }
+  .op-card.collapsed .op-body { display: none; }
+  .op-row {
+    display: grid; grid-template-columns: 10px 1fr; gap: 8px;
+    padding: 7px 0; border-bottom: 1px solid rgba(120,150,130,.12);
+  }
+  .op-row:last-child { border-bottom: none; }
+  .op-dot {
+    width: 8px; height: 8px; border-radius: 50%; margin-top: 5px;
+    background: #6a7a72;
+  }
+  .op-dot.working { background: #3dba6a; box-shadow: 0 0 6px rgba(61,186,106,.55); }
+  .op-dot.idle { background: #9aa89a; }
+  .op-dot.nocheck { background: #556058; }
+  .op-name { font-size: 12px; font-weight: 650; color: #e8f0ea; }
+  .op-task { font-size: 11px; color: #a8c4b4; margin-top: 2px; line-height: 1.35; }
+  .op-when { font-size: 10px; color: #7a9a88; margin-top: 3px; }
+  .op-badge {
+    display: inline-block; font-size: 10px; font-weight: 650;
+    padding: 1px 6px; border-radius: 999px; margin-left: 6px;
+    vertical-align: middle;
+  }
+  .op-badge.working { background: rgba(61,186,106,.18); color: #6fd992; }
+  .op-badge.idle { background: rgba(160,170,160,.15); color: #b8c4b8; }
+  .op-badge.nocheck { background: rgba(80,90,85,.25); color: #8a9690; }
+  .op-footer {
+    font-size: 10px; color: #6e8878; padding: 0 12px 9px; line-height: 1.4;
+  }
+  .op-footer a { color: #9ec4b0; text-decoration: underline; }
+  .op-legend { font-size: 10px; color: #7a9a88; padding: 0 12px 6px; }
+  .op-legend span { margin-right: 10px; white-space: nowrap; }
+  .op-legend i {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    margin-right: 3px; vertical-align: middle;
+  }
+  #live-source {
+    font-size: 10px; color: #7a9a88; padding: 0 12px 6px; line-height: 1.4;
+  }
+  #live-source.bad { color: #c9a070; }
+  #honesty-note {
+    font-size: 10px; color: #6e8878; padding: 0 12px 8px; line-height: 1.4;
+  }
+  #feed-list { list-style: none; margin: 0; padding: 0; }
+  #feed-list li {
+    padding: 7px 6px; border-radius: 8px; cursor: pointer;
+    border-bottom: 1px solid rgba(120,150,130,.1);
+  }
+  #feed-list li:hover, #feed-list li.selected {
+    background: rgba(40,70,55,.45);
+  }
+  #feed-list .ev-top {
+    display: flex; justify-content: space-between; gap: 8px; align-items: baseline;
+    font-size: 10px; color: #7a9a88;
+  }
+  #feed-list .ev-type {
+    text-transform: uppercase; letter-spacing: .04em; font-weight: 700;
+    color: #9ec4b0;
+  }
+  #feed-list .ev-type.meeting-live { color: #c9a0e8; }
+  #feed-list .ev-type.schedule { color: #a8b8c4; }
+  #feed-list .ev-meta {
+    font-size: 10px; color: #8aa898; margin-top: 2px;
+  }
+  #feed-list .ev-text {
+    font-size: 12px; color: #dcebe2; margin-top: 3px; line-height: 1.35;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  #feed-detail {
+    display: none; margin-top: 8px; padding: 8px;
+    background: rgba(0,0,0,.28); border-radius: 8px;
+    font-size: 11px; color: #b8cfc2; white-space: pre-wrap;
+  }
+  #feed-detail.open { display: block; }
+  #panel-tabs {
+    display: none;
+    gap: 6px; padding: 0; pointer-events: auto;
+  }
+  #panel-tabs button {
+    appearance: none; flex: 1;
+    border: 1px solid rgba(140,180,150,.35);
+    background: rgba(30,50,42,.75); color: #cfe8d8;
+    border-radius: 10px; padding: 8px 10px; font-size: 12px; font-weight: 650;
+    cursor: pointer;
+  }
+  #panel-tabs button[aria-selected="true"] {
+    background: rgba(61,186,106,.22); border-color: rgba(61,186,106,.45); color: #d8f5e4;
+  }
+  #mobile-bar {
+    display: none;
+    position: fixed; left: 0; right: 0; top: 0; z-index: 30;
+    padding: 10px 12px 8px;
+    background: linear-gradient(180deg, rgba(8,16,12,.96), rgba(8,16,12,.88));
+    border-bottom: 1px solid rgba(140,180,150,.2);
+    pointer-events: auto;
+  }
+  #mobile-bar h1 {
+    font-size: 16px; font-weight: 650; color: #b8e0c8; margin: 0;
+    letter-spacing: .03em;
+  }
+  #mobile-bar .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    margin-top: 6px;
+  }
+  #mobile-bar .live {
+    font-size: 10px; color: #7a9a88; line-height: 1.35; flex: 1;
+  }
+  #mobile-bar .live.bad { color: #c9a070; }
+  #scene-toggle {
+    appearance: none; border: 1px solid rgba(140,180,150,.35);
+    background: rgba(30,50,42,.7); color: #cfe8d8;
+    border-radius: 8px; padding: 5px 9px; font-size: 11px; cursor: pointer;
+    white-space: nowrap;
+  }
+  #page-footer-links {
+    font-size: 10px; color: #6e8878; padding: 0 12px 10px; line-height: 1.45;
+  }
+  #page-footer-links a { color: #9ec4b0; }
+  #watch2d {
+    position: fixed; left: 12px; bottom: 12px; z-index: 21;
+    width: min(280px, calc(100vw - 24px));
+    background: rgba(10, 20, 16, .92);
+    border: 1px solid rgba(140, 180, 150, .28);
+    border-radius: 12px; color: #e6f2ea;
+    box-shadow: 0 8px 28px rgba(0,0,0,.45);
+    overflow: hidden;
+  }
+  #watch2d.collapsed .w2-body { display: none; }
+  #watch2d header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 10px; border-bottom: 1px solid rgba(140,180,150,.15);
+  }
+  #watch2d h2 { font-size: 12px; color: #b8e0c8; margin: 0; font-weight: 650; }
+  #watch2d .w2-body { padding: 8px 10px 10px; }
+  #watch-map {
+    position: relative; width: 100%; height: 150px;
+    background: linear-gradient(160deg, #13241e, #0c1814 60%, #1a2e28);
+    border-radius: 8px; border: 1px solid rgba(100,130,110,.25);
+    overflow: hidden;
+  }
+  .w2-spot {
+    position: absolute; transform: translate(-50%, -50%);
+    font-size: 8px; color: #8aa898; text-align: center; pointer-events: none;
+  }
+  .w2-spot .ring {
+    width: 10px; height: 10px; border-radius: 50%; margin: 0 auto 2px;
+    border: 1px solid rgba(160,180,170,.35); background: rgba(40,60,50,.4);
+  }
+  .w2-bot {
+    position: absolute; transform: translate(-50%, -50%);
+    transition: left .9s ease, top .9s ease;
+    text-align: center; pointer-events: none; z-index: 2;
+  }
+  .w2-bot .blob {
+    width: 12px; height: 12px; border-radius: 50%; margin: 0 auto 2px;
+    background: #556058; box-shadow: 0 0 0 2px rgba(0,0,0,.25);
+  }
+  .w2-bot.working .blob {
+    background: #3dba6a; box-shadow: 0 0 8px rgba(61,186,106,.6);
+  }
+  .w2-bot.idle .blob { background: #8a968c; }
+  .w2-bot.meeting .blob {
+    background: #c9a0e8; box-shadow: 0 0 8px rgba(180,120,220,.5);
+  }
+  .w2-bot.nocheck .blob { background: #556058; opacity: .85; }
+  .w2-bot .nm {
+    font-size: 8px; color: #dcebe2; white-space: nowrap;
+    text-shadow: 0 1px 3px #000;
+  }
+  #watch2d .w2-note { font-size: 10px; color: #6e8878; margin-top: 6px; line-height: 1.35; }
+  body.mobile-ui #hud { display: none; }
+  body.mobile-ui #mobile-bar { display: block; }
+  body.mobile-ui #panel-tabs { display: flex; }
+  body.mobile-ui #office-panels {
+    left: 8px; right: 8px; width: auto; top: auto; bottom: 0;
+    max-height: min(58vh, calc(100vh - 96px));
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  body.mobile-ui #office-panels .op-card { display: none; }
+  body.mobile-ui #office-panels .op-card.mobile-active { display: block; }
+  body.mobile-ui #office-panels .op-card .op-body { max-height: min(42vh, 360px); }
+  body.mobile-ui #watch2d {
+    left: 8px; right: 8px; width: auto; bottom: auto; top: 72px;
+    max-height: 40vh; display: none;
+  }
+  body.mobile-ui #watch2d.mobile-active { display: block; }
+  body.mobile-ui.scene-hidden #c { visibility: hidden; }
+  body.mobile-ui.scene-hidden #label { display: none !important; }
+  @media (max-width: 640px) {
+    /* phone defaults applied via JS class mobile-ui */
+  }
+
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="mobile-bar" aria-label="Office heading">
+  <h1>Rivulet Team Office</h1>
+  <div class="row">
+    <div class="live" id="mobile-live">Live source…</div>
+    <button type="button" id="scene-toggle" aria-pressed="false">Show 3D</button>
+  </div>
+</div>
+<div id="hud">
+  <h1>Rivulet Team Office</h1>
+  <div class="hint">drag to look · click a desk · scroll / pinch to zoom</div>
+  <div class="status" id="hud-live">live read-only activity · no bot polling</div>
+</div>
+<div id="label"></div>
+
+<div id="office-panels">
+  <div id="panel-tabs" role="tablist" aria-label="Office panels">
+    <button type="button" role="tab" id="tab-status" aria-selected="true" data-tab="status">Status</button>
+    <button type="button" role="tab" id="tab-feed" aria-selected="false" data-tab="feed">Feed</button>
+    <button type="button" role="tab" id="tab-map" aria-selected="false" data-tab="map">Map</button>
+  </div>
+  <section class="op-card mobile-active" id="status-card" data-panel="status">
+    <header>
+      <div>
+        <h2>At their desks</h2>
+        <div class="meta">Shared activity board · refreshes while open</div>
+      </div>
+      <button type="button" class="op-toggle" id="status-toggle" aria-expanded="true">Collapse</button>
+    </header>
+    <div class="op-legend" id="status-legend">
+      <span><i style="background:#3dba6a"></i>Working</span>
+      <span><i style="background:#9aa89a"></i>Idle</span>
+      <span><i style="background:#556058"></i>No check-in</span>
+      <span><i style="background:#c9a0e8"></i>In a live meeting</span>
+    </div>
+    <div id="live-source">Live source…</div>
+    <div class="op-body" id="status-body"></div>
+    <div id="honesty-note">Avatar place comes from check-in and office events — not a live camera or presence sensor. A scheduled meeting alone does not mean anyone attended.</div>
+    <div class="op-footer" id="status-footer">Status comes from agents’ check-ins; no constant polling by bots</div>
+    <div id="page-footer-links">Raw JSON: <a href="/activity.json">/activity.json</a> · <a href="/events.json">/events.json</a></div>
+  </section>
+  <section class="op-card" id="feed-card" data-panel="feed">
+    <header>
+      <div>
+        <h2>Office feed</h2>
+        <div class="meta">Newest first · real commands and check-ins</div>
+      </div>
+      <button type="button" class="op-toggle" id="feed-toggle" aria-expanded="true">Collapse</button>
+    </header>
+    <div class="op-body">
+      <ul id="feed-list"></ul>
+      <div id="feed-detail"></div>
+    </div>
+    <div class="op-footer" id="feed-footer">Events come from the shared office board — not live presence</div>
+  </section>
+</div>
+<div id="watch2d" data-panel="map">
+  <header>
+    <h2>Watching the office</h2>
+    <button type="button" class="op-toggle" id="watch-toggle" aria-expanded="true">Collapse</button>
+  </header>
+  <div class="w2-body">
+    <div id="watch-map" aria-label="Schematic office view"></div>
+    <div class="w2-note">Markers are derived from check-ins and events. Color follows check-in status; place is not literal camera presence. No fake busy motion.</div>
+  </div>
+</div>
+
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three.module.js",
+    "three/addons/controls/OrbitControls.js": "/vendor/OrbitControls.js"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ─── Palette ─── */
+const C = {
+  jade:       0x0a1f1c,
+  jadeDeep:   0x061412,
+  jadeRim:    0x1a4a44,
+  limestone:  0xc4a882,
+  limeDark:   0x8a6e4e,
+  limeLite:   0xd9c4a0,
+  wood:       0x6b4423,
+  woodLite:   0x8B5E3C,
+  woodDark:   0x3d2817,
+  canopy:     0x2d5a3d,
+  leaf:       0x3d7a4f,
+  leafLite:   0x5a9a68,
+  soil:       0x4a3828,
+  soilWet:    0x3a2a1c,
+  cream:      0xe8dfd0,
+  creamWall:  0xd4cbb8,
+  biolume:    0x9b6fd4,
+  biolumeSoft:0xc9a0e8,
+  rust:       0xa85a3a,
+  crystal:    0xa8d4e8,
+  cliff:      0x5c4a38,
+  cliffDark:  0x3a2e22,
+  glass:      0xa8c8c0,
+  moss:       0x3a6b40,
+  sand:       0xd2b48c,
+  bark:       0x4a3020,
+};
+
+const canvas = document.getElementById('c');
+const labelEl = document.getElementById('label');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0c1814);
+scene.fog = new THREE.FogExp2(0x0c1814, 0.018);
+
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 120);
+camera.position.set(11, 10.5, 13);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 1.2, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.06;
+controls.minDistance = 5;
+controls.maxDistance = 28;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.update();
+
+/* ─── Lights: dusk canyon rim + biolume ─── */
+scene.add(new THREE.AmbientLight(0x2a3a38, 0.45));
+
+const rim = new THREE.DirectionalLight(0xffc89a, 0.85);
+rim.position.set(-8, 14, 6);
+rim.castShadow = true;
+rim.shadow.mapSize.set(1024, 1024);
+rim.shadow.camera.near = 1;
+rim.shadow.camera.far = 40;
+rim.shadow.camera.left = -16;
+rim.shadow.camera.right = 16;
+rim.shadow.camera.top = 16;
+rim.shadow.camera.bottom = -16;
+rim.shadow.bias = -0.0005;
+scene.add(rim);
+
+const fill = new THREE.DirectionalLight(0x6a8a9a, 0.25);
+fill.position.set(10, 6, -8);
+scene.add(fill);
+
+const hemi = new THREE.HemisphereLight(0x4a6a58, 0x2a1a10, 0.35);
+scene.add(hemi);
+
+/* ─── Helpers ─── */
+const mat = (color, opts = {}) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.85, metalness: 0.05, ...opts
+});
+const box = (w, h, d, color, opts) => {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color, opts));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+};
+const cyl = (rt, rb, h, color, segs = 8, opts) => {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, segs), mat(color, opts));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+};
+const sph = (r, color, segs = 10, opts) => {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, segs, segs), mat(color, opts));
+  m.castShadow = true; m.receiveShadow = true;
+  return m;
+};
+
+function addContactShadow(parent, w, d, y = 0.01) {
+  const s = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.28 })
+  );
+  s.rotation.x = -Math.PI / 2;
+  s.position.y = y;
+  parent.add(s);
+  return s;
+}
+
+/* ═══════════════════════════════════════
+   CANYON TERRACE SHELL
+═══════════════════════════════════════ */
+const office = new THREE.Group();
+scene.add(office);
+
+/* Floor terrace — limestone slabs */
+const floor = box(22, 0.25, 16, C.limestone);
+floor.position.set(0, -0.125, 0);
+office.add(floor);
+
+/* Diggable soil beds between desk islands */
+function soilBed(x, z, w, d) {
+  const g = new THREE.Group();
+  const bed = box(w, 0.12, d, C.soil);
+  bed.position.y = 0.06;
+  g.add(bed);
+  /* clumpy soil mounds */
+  for (let i = 0; i < 5; i++) {
+    const clump = sph(0.08 + Math.random() * 0.06, C.soilWet, 6);
+    clump.position.set((Math.random() - 0.5) * w * 0.7, 0.1, (Math.random() - 0.5) * d * 0.7);
+    clump.scale.y = 0.5;
+    g.add(clump);
+  }
+  g.position.set(x, 0, z);
+  office.add(g);
+  return g;
+}
+
+soilBed(-5.5, -1.5, 2.2, 3.5);
+soilBed(-1.5, -3.2, 3.5, 1.6);
+soilBed(3.2, -2.8, 2.0, 2.2);
+soilBed(6.0, 1.5, 1.8, 2.8);
+soilBed(-6.2, 3.0, 2.0, 2.0);
+
+/* Living water channel under glass — main aqueduct through floor */
+function makeWater(w, d, y) {
+  const water = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 0.08, d),
+    new THREE.MeshStandardMaterial({
+      color: C.jade, roughness: 0.15, metalness: 0.35,
+      emissive: C.jadeRim, emissiveIntensity: 0.15, transparent: true, opacity: 0.92
+    })
+  );
+  water.position.y = y;
+  water.receiveShadow = true;
+  return water;
+}
+
+const channelMain = new THREE.Group();
+channelMain.position.set(0, 0.02, 0.8);
+/* carved trench */
+const trench = box(18, 0.18, 1.1, C.cliffDark);
+trench.position.y = -0.02;
+channelMain.add(trench);
+const waterMain = makeWater(17.6, 0.85, 0.04);
+channelMain.add(waterMain);
+/* glass cover */
+const glassCover = new THREE.Mesh(
+  new THREE.BoxGeometry(17.8, 0.04, 1.0),
+  new THREE.MeshStandardMaterial({
+    color: C.glass, roughness: 0.05, metalness: 0.1,
+    transparent: true, opacity: 0.35
+  })
+);
+glassCover.position.y = 0.12;
+channelMain.add(glassCover);
+/* limestone rims */
+[-0.55, 0.55].forEach(oz => {
+  const rimS = box(18, 0.1, 0.12, C.limeDark);
+  rimS.position.set(0, 0.1, oz);
+  channelMain.add(rimS);
+});
+office.add(channelMain);
+
+/* Side feeder channel toward meeting grotto */
+const feeder = new THREE.Group();
+feeder.position.set(4.5, 0.02, -2.5);
+const fTrench = box(0.7, 0.15, 5.5, C.cliffDark);
+fTrench.position.y = -0.02;
+feeder.add(fTrench);
+feeder.add(makeWater(0.5, 5.2, 0.04));
+const fGlass = new THREE.Mesh(
+  new THREE.BoxGeometry(0.6, 0.03, 5.3),
+  new THREE.MeshStandardMaterial({ color: C.glass, roughness: 0.05, transparent: true, opacity: 0.35 })
+);
+fGlass.position.y = 0.11;
+feeder.add(fGlass);
+office.add(feeder);
+
+/* Tall canyon cliff walls */
+function cliffWall(w, h, d, x, y, z, rotY = 0) {
+  const g = new THREE.Group();
+  const base = box(w, h, d, C.cliff);
+  base.position.y = h / 2;
+  g.add(base);
+  /* limestone banding */
+  for (let i = 0; i < 4; i++) {
+    const band = box(w * 1.01, 0.15, d * 1.02, i % 2 ? C.limestone : C.limeDark);
+    band.position.y = 0.8 + i * (h / 5);
+    g.add(band);
+  }
+  /* moss patches */
+  for (let i = 0; i < 6; i++) {
+    const moss = box(0.4 + Math.random() * 0.6, 0.08, 0.15 + Math.random() * 0.2, C.moss);
+    moss.position.set((Math.random() - 0.5) * w * 0.8, 1 + Math.random() * (h - 2), d / 2 + 0.05);
+    g.add(moss);
+  }
+  /* leaf-card silhouettes at top (canopy) */
+  for (let i = 0; i < 5; i++) {
+    const leaf = box(0.5 + Math.random() * 0.4, 0.04, 0.35 + Math.random() * 0.25, C.canopy);
+    leaf.position.set((Math.random() - 0.5) * w * 0.9, h + 0.1, (Math.random() - 0.5) * d);
+    leaf.rotation.z = (Math.random() - 0.5) * 0.4;
+    g.add(leaf);
+  }
+  g.position.set(x, y, z);
+  g.rotation.y = rotY;
+  office.add(g);
+  return g;
+}
+
+cliffWall(22, 7, 1.2, 0, 0, -8.2);          // back canyon
+cliffWall(1.4, 7, 16, -11.2, 0, 0);          // left cliff
+cliffWall(1.4, 6.5, 10, 11.2, 0, -3);        // right partial (window side open-ish)
+cliffWall(8, 5.5, 1.0, 7, 0, 7.5);           // front-right trench edge
+
+/* Soft mist in corners (transparent spheres, not white discs) */
+function mistBlob(x, y, z, s) {
+  const m = new THREE.Mesh(
+    new THREE.SphereGeometry(s, 8, 8),
+    new THREE.MeshBasicMaterial({
+      color: 0x3a5a50, transparent: true, opacity: 0.08, depth: THREE.DoubleSide
+    })
+  );
+  m.position.set(x, y, z);
+  m.scale.y = 0.45;
+  office.add(m);
+  return m;
+}
+mistBlob(-9, 1.2, -6, 2.2);
+mistBlob(9, 1.0, -6.5, 1.8);
+mistBlob(-8, 0.8, 5, 1.6);
+mistBlob(8.5, 1.5, 5, 2.0);
+mistBlob(0, 0.6, -7, 2.5);
+
+/* ═══════════════════════════════════════
+   BIOLUME MUSHROOM (desk lamps + ambient)
+═══════════════════════════════════════ */
+const biolumeLights = [];
+function mushroomLamp(x, y, z, scale = 1, intensity = 0.55) {
+  const g = new THREE.Group();
+  const stem = cyl(0.04 * scale, 0.06 * scale, 0.35 * scale, C.cream, 6);
+  stem.position.y = 0.18 * scale;
+  g.add(stem);
+  const cap = sph(0.16 * scale, C.biolume, 8, {
+    emissive: C.biolume, emissiveIntensity: 0.7, roughness: 0.5
+  });
+  cap.scale.y = 0.55;
+  cap.position.y = 0.38 * scale;
+  g.add(cap);
+  const glow = new THREE.PointLight(C.biolumeSoft, intensity, 3.5 * scale, 2);
+  glow.position.y = 0.4 * scale;
+  g.add(glow);
+  biolumeLights.push({ light: glow, base: intensity, phase: Math.random() * Math.PI * 2 });
+  g.position.set(x, y, z);
+  return g;
+}
+
+/* ═══════════════════════════════════════
+   DESK ISLANDS
+═══════════════════════════════════════ */
+const desks = []; // { mesh, label, sub, focus }
+const clickables = [];
+
+function makeDeskIsland(opts) {
+  const {
+    x, z, rot = 0, label, sub = '', accent = C.wood,
+    buildTop, focusY = 1.4
+  } = opts;
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = rot;
+
+  /* stone/wood island base */
+  const island = box(2.4, 0.18, 1.6, C.limeDark);
+  island.position.y = 0.15;
+  g.add(island);
+  const woodTop = box(2.2, 0.08, 1.45, accent);
+  woodTop.position.y = 0.28;
+  g.add(woodTop);
+  addContactShadow(g, 2.5, 1.7, 0.02);
+
+  /* nameplate slab with readable canvas label */
+  const plate = box(1.1, 0.06, 0.22, C.cliffDark);
+  plate.position.set(0, 0.35, 0.55);
+  g.add(plate);
+  (() => {
+    const cv = document.createElement('canvas');
+    cv.width = 512; cv.height = 96;
+    const ctx = cv.getContext('2d');
+    ctx.fillStyle = '#2a2018';
+    ctx.fillRect(0, 0, 512, 96);
+    ctx.fillStyle = '#e8dfd0';
+    ctx.font = '650 36px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const short = label.length > 22 ? label.slice(0, 20) + '…' : label;
+    ctx.fillText(short, 256, 48);
+    const tex = new THREE.CanvasTexture(cv);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const nm = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.0, 0.18),
+      new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+    );
+    nm.position.set(0, 0.39, 0.56);
+    nm.rotation.x = -Math.PI / 2;
+    g.add(nm);
+  })();
+
+  /* biolume mushroom lamp */
+  g.add(mushroomLamp(0.9, 0.32, -0.45, 0.9, 0.5));
+
+  /* chair */
+  const chair = makeChair();
+  chair.position.set(0, 0, 1.05);
+  chair.rotation.y = Math.PI;
+  g.add(chair);
+
+  if (buildTop) buildTop(g);
+
+  /* invisible click target */
+  const hit = new THREE.Mesh(
+    new THREE.BoxGeometry(2.4, 1.2, 1.8),
+    new THREE.MeshBasicMaterial({ visible: false })
+  );
+  hit.position.y = 0.7;
+  hit.userData = { kind: 'desk', label, sub, focus: new THREE.Vector3(x, focusY, z), group: g };
+  g.add(hit);
+  clickables.push(hit);
+  desks.push({ group: g, label, sub, focus: new THREE.Vector3(x, focusY, z) });
+
+  office.add(g);
+  return g;
+}
+
+function makeChair() {
+  const g = new THREE.Group();
+  const seat = box(0.45, 0.06, 0.45, C.woodLite);
+  seat.position.y = 0.42;
+  g.add(seat);
+  const back = box(0.45, 0.4, 0.06, C.wood);
+  back.position.set(0, 0.62, -0.2);
+  g.add(back);
+  [[-0.18, -0.18], [0.18, -0.18], [-0.18, 0.18], [0.18, 0.18]].forEach(([lx, lz]) => {
+    const leg = box(0.05, 0.42, 0.05, C.woodDark);
+    leg.position.set(lx, 0.21, lz);
+    g.add(leg);
+  });
+  return g;
+}
+
+/* Dig tool prop */
+function digTool() {
+  const g = new THREE.Group();
+  const handle = cyl(0.02, 0.02, 0.35, C.woodDark, 5);
+  handle.rotation.z = Math.PI / 5;
+  handle.position.set(0, 0.1, 0);
+  g.add(handle);
+  const blade = box(0.12, 0.02, 0.08, C.cliff);
+  blade.position.set(0.12, 0.22, 0);
+  blade.rotation.z = Math.PI / 5;
+  g.add(blade);
+  return g;
+}
+
+/* Tiny raft */
+function tinyRaft(scale = 1) {
+  const g = new THREE.Group();
+  for (let i = -1; i <= 1; i++) {
+    const log = cyl(0.04 * scale, 0.04 * scale, 0.35 * scale, C.bark, 6);
+    log.rotation.z = Math.PI / 2;
+    log.position.set(0, 0.04 * scale, i * 0.07 * scale);
+    g.add(log);
+  }
+  const deck = box(0.32 * scale, 0.02 * scale, 0.22 * scale, C.woodLite);
+  deck.position.y = 0.08 * scale;
+  g.add(deck);
+  return g;
+}
+
+/* Size / Strength desk toys (Rivulet mechanics) */
+function mechanicToy(kind) {
+  const g = new THREE.Group();
+  if (kind === 'size') {
+    const a = box(0.12, 0.08, 0.12, C.leaf);
+    const b = box(0.2, 0.12, 0.2, C.leafLite);
+    b.position.set(0.2, 0.02, 0);
+    g.add(a, b);
+  } else {
+    const base = box(0.15, 0.06, 0.1, C.rust);
+    const bar = box(0.06, 0.18, 0.06, C.cliff);
+    bar.position.y = 0.12;
+    g.add(base, bar);
+  }
+  return g;
+}
+
+/* Leaf card / sketch plane */
+function sketchCard(color, w = 0.25, h = 0.18) {
+  return box(w, 0.01, h, color);
+}
+
+/* ── Desk 1: Game Designer ── */
+makeDeskIsland({
+  x: -6.5, z: -4.5, rot: 0.15,
+  label: 'Game Designer',
+  sub: 'canyon craft · sand tray',
+  accent: C.wood,
+  buildTop(g) {
+    /* topographic sand tray */
+    const tray = box(0.9, 0.08, 0.7, C.cliffDark);
+    tray.position.set(-0.35, 0.36, -0.1);
+    g.add(tray);
+    const sand = box(0.8, 0.05, 0.6, C.sand);
+    sand.position.set(-0.35, 0.42, -0.1);
+    g.add(sand);
+    /* canyon ridges in sand */
+    for (let i = 0; i < 4; i++) {
+      const ridge = box(0.7, 0.04, 0.04, C.limeDark);
+      ridge.position.set(-0.35, 0.46, -0.3 + i * 0.14);
+      ridge.rotation.y = (i - 1.5) * 0.08;
+      g.add(ridge);
+    }
+    /* tiny map tiles: jungle / desert / mushroom / cave */
+    const tiles = [
+      { c: C.canopy, ox: 0.35 },
+      { c: C.sand, ox: 0.55 },
+      { c: C.biolume, ox: 0.75 },
+      { c: C.cliffDark, ox: 0.95 }
+    ];
+    tiles.forEach((t, i) => {
+      const tile = box(0.16, 0.02, 0.16, t.c);
+      tile.position.set(t.ox - 0.3, 0.34, 0.35 - (i % 2) * 0.2);
+      g.add(tile);
+    });
+    /* brush */
+    const brush = cyl(0.015, 0.015, 0.22, C.woodDark, 5);
+    brush.rotation.z = 1.1;
+    brush.position.set(0.55, 0.4, -0.35);
+    g.add(brush);
+    /* miniature raft on desk canal */
+    const canal = box(0.7, 0.06, 0.28, C.jade, { emissive: C.jadeRim, emissiveIntensity: 0.2 });
+    canal.position.set(0.5, 0.34, 0.15);
+    g.add(canal);
+    const raft = tinyRaft(0.7);
+    raft.position.set(0.5, 0.38, 0.15);
+    g.add(raft);
+    /* dig tool */
+    const dig = digTool();
+    dig.position.set(-0.9, 0.32, 0.3);
+    dig.scale.setScalar(0.85);
+    g.add(dig);
+    /* WIP canyon polaroids pinned above */
+    const board = box(0.9, 0.55, 0.04, C.cream);
+    board.position.set(0, 1.15, -0.65);
+    g.add(board);
+    [-0.25, 0, 0.25].forEach((ox, i) => {
+      const polaroid = box(0.22, 0.26, 0.02, 0xf5f0e6);
+      polaroid.position.set(ox, 1.15, -0.62);
+      polaroid.rotation.z = (i - 1) * 0.08;
+      g.add(polaroid);
+      const photo = box(0.18, 0.16, 0.015, [C.canopy, C.cliff, C.biolume][i]);
+      photo.position.set(ox, 1.18, -0.61);
+      photo.rotation.z = (i - 1) * 0.08;
+      g.add(photo);
+    });
+    const sz = mechanicToy('size');
+    sz.position.set(-0.85, 0.34, -0.35);
+    g.add(sz);
+    const st = mechanicToy('strength');
+    st.position.set(-0.55, 0.34, -0.4);
+    g.add(st);
+  }
+});
+
+/* ── Desk 2: Brook · Kickstarter ── */
+makeDeskIsland({
+  x: -2.5, z: -5.2, rot: -0.1,
+  label: 'Brook · Kickstarter',
+  sub: 'storyboards · production',
+  accent: C.woodLite,
+  buildTop(g) {
+    /* storyboard sheets */
+    for (let i = 0; i < 3; i++) {
+      const sheet = box(0.45, 0.01, 0.32, C.cream);
+      sheet.position.set(-0.5 + i * 0.08, 0.34 + i * 0.012, -0.15 + i * 0.05);
+      sheet.rotation.y = i * 0.1;
+      g.add(sheet);
+      /* frame marks */
+      const frame = box(0.18, 0.008, 0.12, C.canopy);
+      frame.position.copy(sheet.position);
+      frame.position.y += 0.01;
+      g.add(frame);
+    }
+    /* phone test stand */
+    const stand = box(0.12, 0.02, 0.18, C.cliffDark);
+    stand.position.set(0.55, 0.34, 0.2);
+    g.add(stand);
+    const phone = box(0.1, 0.22, 0.02, 0x1a1a22);
+    phone.position.set(0.55, 0.46, 0.2);
+    phone.rotation.x = -0.25;
+    g.add(phone);
+    const screen = box(0.08, 0.16, 0.015, C.jadeRim, { emissive: C.jadeRim, emissiveIntensity: 0.4 });
+    screen.position.set(0.55, 0.47, 0.21);
+    screen.rotation.x = -0.25;
+    g.add(screen);
+    /* clapperboard */
+    const clap = box(0.28, 0.2, 0.04, 0x1a1a1a);
+    clap.position.set(0.2, 0.42, -0.35);
+    clap.rotation.y = 0.3;
+    g.add(clap);
+    const clapTop = box(0.28, 0.05, 0.04, C.cream);
+    clapTop.position.set(0.2, 0.54, -0.35);
+    clapTop.rotation.y = 0.3;
+    clapTop.rotation.z = -0.15;
+    g.add(clapTop);
+    /* dig tool + raft toy */
+    const dig = digTool();
+    dig.position.set(-0.9, 0.32, 0.35);
+    g.add(dig);
+    const raft = tinyRaft(0.55);
+    raft.position.set(0.85, 0.34, -0.3);
+    g.add(raft);
+  }
+});
+
+/* ── Desk 3: Chief of Staff ── */
+makeDeskIsland({
+  x: 1.5, z: -5.0, rot: 0.05,
+  label: 'Chief of Staff',
+  sub: 'ops · rhythm',
+  accent: C.wood,
+  buildTop(g) {
+    /* neat stacks / slate */
+    const slate = box(0.7, 0.03, 0.5, C.cliffDark);
+    slate.position.set(-0.2, 0.34, 0);
+    g.add(slate);
+    /* readiness board (decorative blanks ONLY — no numbers) */
+    const board = box(0.85, 0.55, 0.03, C.creamWall);
+    board.position.set(0.15, 1.1, -0.65);
+    g.add(board);
+    /* unlabeled sticky notes */
+    const noteColors = [C.leafLite, C.sand, C.biolumeSoft, C.crystal, C.cream, C.rust];
+    noteColors.forEach((nc, i) => {
+      const note = box(0.16, 0.14, 0.015, nc);
+      note.position.set(-0.2 + (i % 3) * 0.2, 1.2 - Math.floor(i / 3) * 0.2, -0.62);
+      g.add(note);
+    });
+    /* tiny World Tree seedling water-fed planter */
+    const planter = cyl(0.12, 0.14, 0.14, C.limestone, 8);
+    planter.position.set(0.7, 0.4, 0.25);
+    g.add(planter);
+    const waterP = cyl(0.09, 0.09, 0.03, C.jade, 8, { emissive: C.jadeRim, emissiveIntensity: 0.25 });
+    waterP.position.set(0.7, 0.45, 0.25);
+    g.add(waterP);
+    const trunk = cyl(0.025, 0.04, 0.25, C.bark, 6);
+    trunk.position.set(0.7, 0.58, 0.25);
+    g.add(trunk);
+    const canopy = sph(0.14, C.canopy, 8);
+    canopy.position.set(0.7, 0.75, 0.25);
+    g.add(canopy);
+    const dig = digTool();
+    dig.position.set(-0.85, 0.32, 0.3);
+    g.add(dig);
+  }
+});
+
+/* ── Desk 4: App Designer ── */
+makeDeskIsland({
+  x: 5.5, z: -4.2, rot: -0.2,
+  label: 'App Designer',
+  sub: 'UI flow · leaf cards',
+  accent: C.woodLite,
+  buildTop(g) {
+    /* leaf-card silhouettes as UI mockups */
+    const cards = [
+      { c: C.canopy, x: -0.5, z: -0.2 },
+      { c: C.leaf, x: -0.2, z: -0.15 },
+      { c: C.biolume, x: 0.1, z: -0.25 },
+      { c: C.jadeRim, x: 0.4, z: -0.1 }
+    ];
+    cards.forEach((cd, i) => {
+      const card = sketchCard(cd.c, 0.28, 0.4);
+      card.position.set(cd.x, 0.34, cd.z);
+      card.rotation.y = (i - 1.5) * 0.05;
+      g.add(card);
+    });
+    /* tablet */
+    const tab = box(0.5, 0.02, 0.35, 0x222228);
+    tab.position.set(0.55, 0.34, 0.25);
+    g.add(tab);
+    const tabScr = box(0.44, 0.015, 0.3, C.jade, { emissive: 0x1a3a35, emissiveIntensity: 0.35 });
+    tabScr.position.set(0.55, 0.35, 0.25);
+    g.add(tabScr);
+    const sz = mechanicToy('size');
+    sz.position.set(-0.8, 0.34, 0.3);
+    g.add(sz);
+    /* frog plush on corner */
+    const frog = makeFrog(0.55);
+    frog.position.set(-0.7, 0.34, -0.35);
+    g.add(frog);
+  }
+});
+
+/* ── Desk 5: Trading (quiet corner) ── */
+makeDeskIsland({
+  x: 7.2, z: 1.8, rot: -Math.PI / 2.3,
+  label: 'Trading (quiet corner)',
+  sub: 'calm corner · charts',
+  accent: C.woodDark,
+  buildTop(g) {
+    /* quiet screens */
+    const mon = box(0.7, 0.45, 0.04, 0x1a1a20);
+    mon.position.set(0, 0.7, -0.55);
+    g.add(mon);
+    const scr = box(0.62, 0.38, 0.03, 0x0a2018, { emissive: 0x0a3020, emissiveIntensity: 0.3 });
+    scr.position.set(0, 0.7, -0.53);
+    g.add(scr);
+    /* candle-ish rust accent */
+    const candle = cyl(0.04, 0.04, 0.12, C.cream, 6);
+    candle.position.set(0.7, 0.4, 0.2);
+    g.add(candle);
+    const flame = sph(0.035, C.rust, 6, { emissive: C.rust, emissiveIntensity: 0.8 });
+    flame.position.set(0.7, 0.5, 0.2);
+    g.add(flame);
+    const dig = digTool();
+    dig.position.set(-0.7, 0.32, 0.25);
+    g.add(dig);
+  }
+});
+
+/* ── Desk 6: Empty / Ryder guest desk ── */
+makeDeskIsland({
+  x: -7.0, z: 2.5, rot: Math.PI / 2.5,
+  label: 'Empty / Ryder guest desk',
+  sub: 'pull up a chair',
+  accent: C.limeLite,
+  buildTop(g) {
+    /* welcoming empty surface + guest mug (limestone cup, not café clutter) */
+    const cup = cyl(0.06, 0.05, 0.1, C.limestone, 8);
+    cup.position.set(0.4, 0.38, 0.15);
+    g.add(cup);
+    /* World Tree seedling gift */
+    const pot = cyl(0.1, 0.12, 0.12, C.cliff, 7);
+    pot.position.set(-0.4, 0.38, -0.15);
+    g.add(pot);
+    const sap = cyl(0.02, 0.03, 0.2, C.bark, 5);
+    sap.position.set(-0.4, 0.52, -0.15);
+    g.add(sap);
+    const leaves = sph(0.1, C.leafLite, 7);
+    leaves.position.set(-0.4, 0.65, -0.15);
+    g.add(leaves);
+    /* tiny raft welcome */
+    const raft = tinyRaft(0.6);
+    raft.position.set(0.1, 0.34, -0.3);
+    g.add(raft);
+    /* Nameplate hint stone */
+    const stone = box(0.5, 0.04, 0.2, C.limestone);
+    stone.position.set(0, 0.34, 0.35);
+    g.add(stone);
+  }
+});
+
+/* Frog plush / statue */
+function makeFrog(scale = 1) {
+  const g = new THREE.Group();
+  const body = sph(0.12 * scale, C.leaf, 8);
+  body.scale.set(1.1, 0.85, 1.2);
+  body.position.y = 0.1 * scale;
+  g.add(body);
+  const head = sph(0.09 * scale, C.leafLite, 8);
+  head.position.set(0, 0.18 * scale, 0.08 * scale);
+  g.add(head);
+  [[-0.05, 0.06], [0.05, 0.06]].forEach(([ox, oz]) => {
+    const eye = sph(0.03 * scale, 0xf5f5e8, 6);
+    eye.position.set(ox * scale, 0.24 * scale, oz * scale + 0.08 * scale);
+    g.add(eye);
+    const pupil = sph(0.015 * scale, 0x1a1a1a, 5);
+    pupil.position.set(ox * scale, 0.25 * scale, oz * scale + 0.1 * scale);
+    g.add(pupil);
+  });
+  return g;
+}
+
+/* Floor frog statue near channel */
+const frogStatue = makeFrog(1.4);
+frogStatue.position.set(-3.5, 0.15, 2.2);
+office.add(frogStatue);
+addContactShadow(frogStatue, 0.5, 0.5, 0.02);
+
+/* ═══════════════════════════════════════
+   MEETING ROOM — glass/wood + grotto table
+═══════════════════════════════════════ */
+const meeting = new THREE.Group();
+meeting.position.set(3.5, 0, 3.8);
+office.add(meeting);
+
+/* Platform */
+const mFloor = box(5.5, 0.12, 4.2, C.limeDark);
+mFloor.position.y = 0.08;
+meeting.add(mFloor);
+
+/* Half-wall wood base + glass panes */
+function glassPane(w, h, x, z, rotY = 0) {
+  const g = new THREE.Group();
+  const woodBase = box(w, 0.55, 0.12, C.wood);
+  woodBase.position.y = 0.35;
+  g.add(woodBase);
+  const pane = new THREE.Mesh(
+    new THREE.BoxGeometry(w * 0.95, h, 0.05),
+    new THREE.MeshStandardMaterial({
+      color: C.glass, roughness: 0.05, metalness: 0.15,
+      transparent: true, opacity: 0.28
+    })
+  );
+  pane.position.y = 0.55 + h / 2;
+  g.add(pane);
+  /* wood frame posts */
+  [-w / 2, w / 2].forEach(px => {
+    const post = box(0.08, 0.55 + h, 0.1, C.woodDark);
+    post.position.set(px, (0.55 + h) / 2, 0);
+    g.add(post);
+  });
+  g.position.set(x, 0, z);
+  g.rotation.y = rotY;
+  meeting.add(g);
+}
+
+glassPane(5.3, 1.8, 0, -2.0);                 // back
+glassPane(4.0, 1.8, -2.65, 0.1, Math.PI / 2); // left
+glassPane(4.0, 1.8, 2.65, 0.1, Math.PI / 2);  // right
+/* front open with low half-wall only */
+const frontLow = box(4.0, 0.55, 0.12, C.wood);
+frontLow.position.set(0, 0.35, 2.0);
+meeting.add(frontLow);
+
+/* Cutaway limestone grotto table — channel feeds pool + tiny raft + World Tree seed */
+const grotto = new THREE.Group();
+grotto.position.set(0, 0.15, 0);
+meeting.add(grotto);
+
+const tableBase = cyl(1.05, 1.15, 0.45, C.limestone, 12);
+tableBase.position.y = 0.35;
+grotto.add(tableBase);
+
+/* carved pool basin */
+const basin = cyl(0.7, 0.75, 0.12, C.cliffDark, 12);
+basin.position.y = 0.6;
+grotto.add(basin);
+
+const pool = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.62, 0.62, 0.08, 16),
+  new THREE.MeshStandardMaterial({
+    color: C.jade, roughness: 0.12, metalness: 0.4,
+    emissive: C.jadeRim, emissiveIntensity: 0.35
+  })
+);
+pool.position.y = 0.64;
+grotto.add(pool);
+
+/* crystal glow under pool */
+const crystal = sph(0.12, C.crystal, 8, {
+  emissive: C.crystal, emissiveIntensity: 0.9, transparent: true, opacity: 0.85
+});
+crystal.position.set(0.15, 0.55, -0.1);
+grotto.add(crystal);
+const crystalLight = new THREE.PointLight(0xa8d4e8, 0.7, 4, 2);
+crystalLight.position.set(0, 0.7, 0);
+grotto.add(crystalLight);
+
+/* World Tree seed in pool */
+const seed = sph(0.05, C.bark, 6);
+seed.position.set(-0.1, 0.7, 0.1);
+grotto.add(seed);
+const seedSprout = cyl(0.01, 0.015, 0.12, C.leaf, 5);
+seedSprout.position.set(-0.1, 0.78, 0.1);
+grotto.add(seedSprout);
+const seedLeaf = sph(0.04, C.leafLite, 5);
+seedLeaf.position.set(-0.1, 0.86, 0.1);
+grotto.add(seedLeaf);
+
+/* tiny raft on the grotto channel/pool */
+const meetRaft = tinyRaft(0.85);
+meetRaft.position.set(0.25, 0.7, 0.15);
+meetRaft.rotation.y = 0.6;
+grotto.add(meetRaft);
+
+/* channel cutaway on table rim (feeds pool) */
+const cutChannel = box(0.25, 0.06, 0.9, C.jade, { emissive: C.jadeRim, emissiveIntensity: 0.25 });
+cutChannel.position.set(-0.55, 0.62, 0);
+grotto.add(cutChannel);
+
+/* 5 tiny chairs around table */
+for (let i = 0; i < 5; i++) {
+  const ang = (i / 5) * Math.PI * 2 + 0.2;
+  const ch = makeChair();
+  ch.scale.setScalar(0.9);
+  ch.position.set(Math.cos(ang) * 1.55, 0, Math.sin(ang) * 1.55);
+  ch.rotation.y = -ang + Math.PI;
+  meeting.add(ch);
+}
+
+/* World Tree pinboard — biome sketches concept/prototype/review */
+const pinboard = new THREE.Group();
+pinboard.position.set(0, 1.4, -1.85);
+meeting.add(pinboard);
+
+const cork = box(2.4, 1.1, 0.06, 0xb89a6a);
+pinboard.add(cork);
+
+/* Title strip — Kickstarter decorative, NO funding totals */
+const titleStrip = box(2.0, 0.18, 0.04, C.cliffDark);
+titleStrip.position.set(0, 0.4, 0.04);
+pinboard.add(titleStrip);
+/* readable title via canvas texture (no funding numbers) */
+(() => {
+  const cv = document.createElement('canvas');
+  cv.width = 512; cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.fillStyle = '#3a2e22';
+  ctx.fillRect(0, 0, 512, 64);
+  ctx.fillStyle = '#e8dfd0';
+  ctx.font = '600 28px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('Rivulet Kickstarter', 256, 32);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const titleMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.9, 0.16),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true })
+  );
+  titleMesh.position.set(0, 0.4, 0.055);
+  pinboard.add(titleMesh);
+})();
+
+/* biome sketches: jungle / desert / purple mushroom */
+const biomes = [
+  { c: C.canopy, label: 'jungle', x: -0.7 },
+  { c: C.sand, label: 'desert', x: 0 },
+  { c: C.biolume, label: 'mushroom', x: 0.7 }
+];
+biomes.forEach((b, i) => {
+  const sketch = box(0.5, 0.55, 0.03, C.cream);
+  sketch.position.set(b.x, -0.05, 0.04);
+  pinboard.add(sketch);
+  const art = box(0.4, 0.35, 0.025, b.c);
+  art.position.set(b.x, 0.0, 0.05);
+  pinboard.add(art);
+  /* status tag — concept / prototype / review (decorative words via color bars) */
+  const tagColors = [C.leafLite, C.rust, C.biolumeSoft];
+  const tag = box(0.35, 0.08, 0.02, tagColors[i]);
+  tag.position.set(b.x, -0.28, 0.05);
+  pinboard.add(tag);
+});
+
+/* Modest readiness board — blank unlabeled notes only */
+const readyBoard = box(1.2, 0.9, 0.05, C.creamWall);
+readyBoard.position.set(-2.3, 1.5, 0);
+readyBoard.rotation.y = Math.PI / 2;
+meeting.add(readyBoard);
+['gameplay', 'footage', 'rights', 'budget'].forEach((_, i) => {
+  const row = box(0.04, 0.12, 0.7, C.cliffDark);
+  row.position.set(-2.26, 1.75 - i * 0.18, 0);
+  row.rotation.y = Math.PI / 2;
+  meeting.add(row);
+  /* blank state chip */
+  const chip = box(0.03, 0.1, 0.14, i < 2 ? C.leaf : C.sand);
+  chip.position.set(-2.25, 1.75 - i * 0.18, 0.35);
+  chip.rotation.y = Math.PI / 2;
+  meeting.add(chip);
+});
+
+/* Meeting room clickable */
+const meetHit = new THREE.Mesh(
+  new THREE.BoxGeometry(5.5, 2.5, 4.2),
+  new THREE.MeshBasicMaterial({ visible: false })
+);
+meetHit.position.y = 1.2;
+meetHit.userData = {
+  kind: 'meeting',
+  label: 'Meeting Grotto',
+  sub: 'limestone table · World Tree seed',
+  focus: new THREE.Vector3(3.5, 1.6, 3.8)
+};
+meeting.add(meetHit);
+clickables.push(meetHit);
+
+/* ═══════════════════════════════════════
+   PROPS — dig tools rack, APK cartons, plants
+═══════════════════════════════════════ */
+
+/* Stacked APK cartons labeled r74b (joke prop) */
+function apkCarton(x, y, z, rot = 0) {
+  const g = new THREE.Group();
+  const carton = box(0.55, 0.35, 0.4, 0xc4a574);
+  g.add(carton);
+  /* label face */
+  const labelF = box(0.4, 0.2, 0.02, C.cream);
+  labelF.position.set(0, 0.02, 0.21);
+  g.add(labelF);
+  /* green stripe */
+  const stripe = box(0.4, 0.06, 0.025, C.canopy);
+  stripe.position.set(0, 0.1, 0.215);
+  g.add(stripe);
+  /* "r74b" mark as dark bar pattern */
+  const mark = box(0.22, 0.08, 0.025, C.cliffDark);
+  mark.position.set(0, -0.02, 0.215);
+  g.add(mark);
+  g.position.set(x, y, z);
+  g.rotation.y = rot;
+  office.add(g);
+  return g;
+}
+apkCarton(-9.5, 0.25, 5.5, 0.3);
+apkCarton(-9.0, 0.25, 5.8, -0.2);
+apkCarton(-9.3, 0.6, 5.6, 0.1);
+
+/* Potted plants / canopy greens */
+function pottedPlant(x, z, scale = 1) {
+  const g = new THREE.Group();
+  const pot = cyl(0.12 * scale, 0.15 * scale, 0.2 * scale, C.rust, 7);
+  pot.position.y = 0.1 * scale;
+  g.add(pot);
+  const soilM = cyl(0.1 * scale, 0.1 * scale, 0.04 * scale, C.soil, 6);
+  soilM.position.y = 0.2 * scale;
+  g.add(soilM);
+  const stem = cyl(0.02 * scale, 0.03 * scale, 0.35 * scale, C.bark, 5);
+  stem.position.y = 0.38 * scale;
+  g.add(stem);
+  for (let i = 0; i < 4; i++) {
+    const ang = (i / 4) * Math.PI * 2;
+    const lf = box(0.2 * scale, 0.02 * scale, 0.12 * scale, C.leaf);
+    lf.position.set(Math.cos(ang) * 0.1 * scale, 0.5 * scale, Math.sin(ang) * 0.1 * scale);
+    lf.rotation.y = ang;
+    lf.rotation.z = 0.4;
+    g.add(lf);
+  }
+  const top = sph(0.12 * scale, C.canopy, 7);
+  top.position.y = 0.58 * scale;
+  g.add(top);
+  g.position.set(x, 0, z);
+  office.add(g);
+}
+pottedPlant(-9.5, -5.5, 1.2);
+pottedPlant(9.5, -5, 1.0);
+pottedPlant(-4, 6, 1.3);
+pottedPlant(9, 5.5, 0.9);
+pottedPlant(0.5, 6.5, 1.1);
+
+/* Floor dig-tool rack */
+const rack = new THREE.Group();
+rack.position.set(-9.8, 0, -2);
+const rackPole = box(0.08, 1.2, 0.08, C.woodDark);
+rackPole.position.y = 0.6;
+rack.add(rackPole);
+for (let i = 0; i < 3; i++) {
+  const t = digTool();
+  t.position.set(0.15, 0.4 + i * 0.25, 0);
+  t.rotation.z = -0.4;
+  rack.add(t);
+}
+office.add(rack);
+
+/* Extra floor biolume mushrooms along cliffs */
+[[-10, 0, -5], [-10, 0, 2], [10, 0, -4], [8, 0, 6], [-5, 0, -7.5], [2, 0, -7.5]].forEach(([x, , z], i) => {
+  office.add(mushroomLamp(x, 0, z, 1.1 + (i % 3) * 0.2, 0.4));
+});
+
+/* Soft steam/idle sprites on desks — scaled emissive wisps */
+const steams = [];
+desks.forEach((d, i) => {
+  if (i === 5) return; // guest desk quiet
+  const wisp = sph(0.04, 0xd0e8e0, 5, {
+    emissive: 0xa0c8c0, emissiveIntensity: 0.5, transparent: true, opacity: 0.35
+  });
+  wisp.position.set(d.focus.x + 0.35, 0.55, d.focus.z - 0.2);
+  scene.add(wisp);
+  steams.push({ mesh: wisp, baseY: 0.55, phase: i * 1.3 });
+});
+
+/* ═══════════════════════════════════════
+   INTERACTION
+═══════════════════════════════════════ */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let focusTarget = null;
+let focusLook = null;
+let focusT = 0;
+
+let selectedClickable = null;
+let selectedLabelClient = { x: 0, y: 0 };
+
+function setLabel(text, sub, clientX, clientY) {
+  labelEl.style.display = 'block';
+  labelEl.textContent = '';
+  labelEl.appendChild(document.createTextNode(text || ''));
+  if (sub) {
+    const span = document.createElement('span');
+    span.className = 'sub';
+    span.textContent = sub;
+    labelEl.appendChild(span);
+  }
+  if (clientX != null && clientY != null) {
+    selectedLabelClient = { x: clientX, y: clientY };
+    labelEl.style.left = clientX + 'px';
+    labelEl.style.top = clientY + 'px';
+  }
+}
+
+function hideLabel() {
+  labelEl.style.display = 'none';
+  selectedClickable = null;
+}
+
+function refreshSelectedLabel() {
+  if (!selectedClickable || labelEl.style.display === 'none') return;
+  const ud = selectedClickable.userData || {};
+  setLabel(ud.label, ud.sub, selectedLabelClient.x, selectedLabelClient.y);
+}
+
+canvas.addEventListener('pointerdown', (e) => {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hits = raycaster.intersectObjects(clickables, false);
+  if (hits.length) {
+    const obj = hits[0].object;
+    const ud = obj.userData;
+    selectedClickable = obj;
+    setLabel(ud.label, ud.sub, e.clientX, e.clientY);
+    focusTarget = ud.focus.clone();
+    focusLook = ud.focus.clone();
+    focusT = 0;
+    /* nudge camera toward desk */
+    const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+    const dest = ud.focus.clone().add(dir.multiplyScalar(5.5));
+    dest.y = Math.max(dest.y, 4.5);
+    focusTarget = dest;
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  const speed = 0.35;
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0; forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+  if (e.key === 'w' || e.key === 'W') { camera.position.addScaledVector(forward, speed); controls.target.addScaledVector(forward, speed); }
+  if (e.key === 's' || e.key === 'S') { camera.position.addScaledVector(forward, -speed); controls.target.addScaledVector(forward, -speed); }
+  if (e.key === 'a' || e.key === 'A') { camera.position.addScaledVector(right, -speed); controls.target.addScaledVector(right, -speed); }
+  if (e.key === 'd' || e.key === 'D') { camera.position.addScaledVector(right, speed); controls.target.addScaledVector(right, speed); }
+});
+
+window.addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ═══════════════════════════════════════
+   ANIMATE
+═══════════════════════════════════════ */
+const clock = new THREE.Clock();
+
+
+/* ═══════════════════════════════════════
+   SHARED ACTIVITY + OFFICE FEED (file-backed)
+═══════════════════════════════════════ */
+const KNOWN_AGENTS = [
+  { id: 'chief-of-staff', name: 'Chief of Staff', deskLabel: 'Chief of Staff', short: 'Chief' },
+  { id: 'game-designer', name: 'Game Designer', deskLabel: 'Game Designer', short: 'Game' },
+  { id: 'brook', name: 'Brook · Kickstarter Manager', deskLabel: 'Brook · Kickstarter', short: 'Brook' },
+  { id: 'app-designer', name: 'App Designer', deskLabel: 'App Designer', short: 'App' },
+  { id: 'trading', name: 'Trading', deskLabel: 'Trading (quiet corner)', short: 'Trading' },
+];
+const LABEL_TO_AGENT = Object.fromEntries(KNOWN_AGENTS.map(a => [a.deskLabel, a.id]));
+const AGENT_BY_ID = Object.fromEntries(KNOWN_AGENTS.map(a => [a.id, a]));
+
+const MS_MIN = 60 * 1000;
+const MS_HOUR = 60 * MS_MIN;
+const MS_DAY = 24 * MS_HOUR;
+
+let lastActivityBoard = null;
+let lastEventsBoard = null;
+let activityAvailable = false;
+let eventsAvailable = false;
+let selectedEventId = null;
+let lastRefreshAt = null;
+let lastActivityUpdatedAt = null;
+let lastEventsUpdatedAt = null;
+
+const deskHitByAgent = {};
+const statusOrbByAgent = {};
+const avatarByAgent = {};
+const avatarTarget = {};
+
+const LOUNGE_POS = new THREE.Vector3(-1.2, 0.55, 1.6);
+const MEETING_POS = new THREE.Vector3(3.5, 0.95, 3.8);
+
+function canFetchShared() {
+  const p = location.protocol;
+  return p === 'http:' || p === 'https:';
+}
+
+function escapeText(s) {
+  return String(s == null ? '' : s);
+}
+
+function parseWhen(iso) {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? t : null;
+}
+
+function formatAgo(iso, now = Date.now()) {
+  const t = parseWhen(iso);
+  if (t == null) return 'No check-in yet';
+  const d = Math.max(0, now - t);
+  if (d < 45 * 1000) return 'just now';
+  if (d < MS_MIN * 90) {
+    const m = Math.round(d / MS_MIN);
+    return m <= 1 ? '1 min ago' : m + ' min ago';
+  }
+  if (d < MS_HOUR * 36) {
+    const h = Math.round(d / MS_HOUR);
+    return h <= 1 ? '1 hour ago' : h + ' hours ago';
+  }
+  try {
+    return new Date(t).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'
+    });
+  } catch (_) {
+    return String(iso);
+  }
+}
+
+function formatClock(isoOrMs) {
+  try {
+    const d = typeof isoOrMs === 'number' ? new Date(isoOrMs) : new Date(isoOrMs);
+    if (!Number.isFinite(d.getTime())) return '—';
+    return d.toLocaleString(undefined, {
+      month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit'
+    });
+  } catch (_) {
+    return '—';
+  }
+}
+
+/** Honest derived status from board row + age rules. */
+function derivePresence(row, now = Date.now()) {
+  const t = parseWhen(row && row.lastCheckIn);
+  const raw = (row && row.status) || 'offline';
+  if (t == null) {
+    return {
+      kind: 'nocheck',
+      badge: 'No check-in',
+      when: 'No check-in yet',
+      task: (row && row.task) || 'Not shared here yet',
+    };
+  }
+  const age = now - t;
+  if (raw === 'active' && age <= MS_HOUR) {
+    return {
+      kind: 'working',
+      badge: 'Working',
+      when: formatAgo(row.lastCheckIn, now),
+      task: (row && row.task) || 'Working',
+    };
+  }
+  if (raw === 'idle' && age <= MS_DAY) {
+    return {
+      kind: 'idle',
+      badge: 'Idle',
+      when: formatAgo(row.lastCheckIn, now),
+      task: (row && row.task) || 'Idle',
+    };
+  }
+  /* active older than 60m, idle older than 24h, offline, unknown */
+  return {
+    kind: 'nocheck',
+    badge: 'No check-in',
+    when: 'Last check-in ' + formatAgo(row.lastCheckIn, now),
+    task: (row && row.task) || 'No recent check-in',
+  };
+}
+
+function placeholderAgents() {
+  return KNOWN_AGENTS.map(a => ({
+    id: a.id,
+    name: a.name,
+    task: canFetchShared() ? 'Check-in on host only' : 'Not shared here yet',
+    status: 'offline',
+    lastCheckIn: null,
+  }));
+}
+
+function resolveActivityUrls() {
+  /* Prefer allowlisted office-server paths, then relative copies. */
+  return ['/activity.json', './activity.json', './rivulet-office/activity.json', '../rivulet-office/activity.json'];
+}
+function resolveEventsUrls() {
+  return ['/events.json', './events.json', './rivulet-office/events.json', '../rivulet-office/events.json'];
+}
+
+async function fetchFirstJson(urls) {
+  let lastErr = null;
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) { lastErr = new Error('HTTP ' + res.status); continue; }
+      return await res.json();
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw lastErr || new Error('unavailable');
+}
+
+/* Status orbs on desks + clickable sub linkage */
+function installDeskStatusHooks() {
+  clickables.forEach(hit => {
+    const ud = hit.userData;
+    if (ud.kind !== 'desk') return;
+    const agentId = LABEL_TO_AGENT[ud.label];
+    if (!agentId) return;
+    ud.agentId = agentId;
+    ud.baseSub = ud.sub || '';
+    deskHitByAgent[agentId] = hit;
+
+    const desk = desks.find(d => d.label === ud.label);
+    if (!desk) return;
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.07, 10, 10),
+      new THREE.MeshStandardMaterial({
+        color: 0x556058, emissive: 0x223028, emissiveIntensity: 0.35,
+        roughness: 0.45, metalness: 0.1
+      })
+    );
+    orb.position.set(0.95, 0.55, 0.35);
+    desk.group.add(orb);
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.09, 0.012, 6, 18),
+      new THREE.MeshStandardMaterial({
+        color: 0x3a4a42, emissive: 0x1a2820, emissiveIntensity: 0.2,
+        roughness: 0.6, metalness: 0.05
+      })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.copy(orb.position);
+    ring.position.y -= 0.02;
+    desk.group.add(ring);
+    statusOrbByAgent[agentId] = { orb, ring, desk };
+  });
+}
+
+function setOrbColor(agentId, kind) {
+  const o = statusOrbByAgent[agentId];
+  if (!o) return;
+  let col = 0x556058, em = 0x223028, inten = 0.3;
+  if (kind === 'working') { col = 0x3dba6a; em = 0x2a8a48; inten = 0.85; }
+  else if (kind === 'idle') { col = 0x8a968c; em = 0x3a4840; inten = 0.35; }
+  o.orb.material.color.setHex(col);
+  o.orb.material.emissive.setHex(em);
+  o.orb.material.emissiveIntensity = inten;
+  o.ring.material.emissiveIntensity = kind === 'working' ? 0.45 : 0.15;
+}
+
+function makeAvatarMarker(agent) {
+  const g = new THREE.Group();
+  const blob = new THREE.Mesh(
+    new THREE.SphereGeometry(0.11, 12, 12),
+    new THREE.MeshStandardMaterial({
+      color: 0x6a7a72, emissive: 0x243028, emissiveIntensity: 0.4,
+      roughness: 0.5, metalness: 0.08
+    })
+  );
+  blob.position.y = 0.12;
+  g.add(blob);
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 64;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, 256, 64);
+  ctx.fillStyle = 'rgba(8,16,12,0.72)';
+  ctx.fillRect(16, 12, 224, 40);
+  ctx.fillStyle = '#e8f0ea';
+  ctx.font = '650 28px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(agent.short, 128, 34);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const label = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.7, 0.18),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false })
+  );
+  label.position.y = 0.38;
+  g.add(label);
+  g.userData = { blob, label, agentId: agent.id };
+  g.position.copy(LOUNGE_POS);
+  /* slight offset per agent so lounge stack is readable */
+  const idx = KNOWN_AGENTS.findIndex(a => a.id === agent.id);
+  g.position.x += (idx - 2) * 0.35;
+  g.position.z += (idx % 2) * 0.25;
+  scene.add(g);
+  avatarByAgent[agent.id] = g;
+  avatarTarget[agent.id] = g.position.clone();
+}
+
+function deskWorldPos(agentId) {
+  const hit = deskHitByAgent[agentId];
+  if (hit && hit.userData.focus) {
+    return new THREE.Vector3(hit.userData.focus.x, 0.55, hit.userData.focus.z);
+  }
+  return LOUNGE_POS.clone();
+}
+
+function meetingWorldPos(agentId) {
+  const idx = KNOWN_AGENTS.findIndex(a => a.id === agent.id);
+  const p = MEETING_POS.clone();
+  p.x += (idx - 2) * 0.28;
+  p.z += ((idx % 2) ? 0.22 : -0.18);
+  return p;
+}
+
+function loungeWorldPos(agentId) {
+  const idx = KNOWN_AGENTS.findIndex(a => a.id === agent.id);
+  const p = LOUNGE_POS.clone();
+  p.x += (idx - 2) * 0.35;
+  p.z += (idx % 2) * 0.25;
+  return p;
+}
+
+/** Ascending by event time (oldest → newest). */
+function eventsAscending() {
+  const ev = (lastEventsBoard && Array.isArray(lastEventsBoard.events))
+    ? lastEventsBoard.events.slice() : [];
+  ev.sort((a, b) => (parseWhen(a.at) || 0) - (parseWhen(b.at) || 0));
+  return ev;
+}
+
+/** Newest first for the feed UI. */
+function eventsNewestFirst() {
+  return eventsAscending().reverse();
+}
+
+function eventsForActor(actorId) {
+  return eventsAscending().filter(e => {
+    if (!e) return false;
+    /* Only explicit actor/to ids — never infer attendees from prose. */
+    if (e.actor === actorId) return true;
+    if (e.to === actorId) return true;
+    return false;
+  });
+}
+
+/**
+ * Place avatars only from real files:
+ * - live meeting interval involving actor → meeting table (schedule never counts)
+ * - else Working check-in → desk
+ * - else lounge
+ * Color is separate and follows check-in presence only (except live meeting purple).
+ */
+function isMeetingAt(event, now = Date.now()) {
+  if (!event || event.type !== 'meeting') return false;
+  const start = parseWhen(event.startsAt);
+  const end = parseWhen(event.endsAt);
+  return start != null && end != null && start <= now && now <= end;
+}
+
+function computeAvatarKind(agentId, presence, now = Date.now()) {
+  const mine = eventsForActor(agentId);
+  const liveMeeting = mine.some(e => isMeetingAt(e, now));
+  if (liveMeeting) return 'meeting';
+  if (presence.kind === 'working') return 'desk';
+  return 'lounge';
+}
+
+/** Marker / 2D blob color: never green from an old event or desk pose alone. */
+function presenceColorKind(presence, pose) {
+  if (pose === 'meeting') return 'meeting';
+  if (presence.kind === 'working') return 'working';
+  if (presence.kind === 'idle') return 'idle';
+  return 'nocheck';
+}
+
+function applyAvatarPose(agentId, kind, presence) {
+  const g = avatarByAgent[agentId];
+  if (!g) return;
+  let target;
+  if (kind === 'meeting') target = meetingWorldPos(agentId);
+  else if (kind === 'desk') target = deskWorldPos(agentId);
+  else target = loungeWorldPos(agentId);
+  avatarTarget[agentId] = target;
+  const blob = g.userData.blob;
+  const colorKind = presenceColorKind(presence, kind);
+  let col = 0x556058, em = 0x223028, inten = 0.3;
+  if (colorKind === 'meeting') { col = 0xc9a0e8; em = 0x6a4098; inten = 0.7; }
+  else if (colorKind === 'working') { col = 0x3dba6a; em = 0x2a8a48; inten = 0.75; }
+  else if (colorKind === 'idle') { col = 0x8a968c; em = 0x3a4840; inten = 0.35; }
+  blob.material.color.setHex(col);
+  blob.material.emissive.setHex(em);
+  blob.material.emissiveIntensity = inten;
+}
+
+function updateLiveSourceUI() {
+  const live = document.getElementById('live-source');
+  const hud = document.getElementById('hud-live');
+  const mob = document.getElementById('mobile-live');
+  const parts = [];
+  let bad = false;
+  if (!canFetchShared()) {
+    parts.push('Live source unavailable (open via the office server)');
+    bad = true;
+  } else if (!activityAvailable && !eventsAvailable) {
+    parts.push('Live source unavailable — activity and events not readable');
+    bad = true;
+  } else {
+    const bits = [];
+    if (activityAvailable) {
+      bits.push('activity' + (lastActivityUpdatedAt ? ' ' + formatAgo(lastActivityUpdatedAt) : ''));
+    } else {
+      bits.push('activity unavailable');
+      bad = true;
+    }
+    if (eventsAvailable) {
+      bits.push('events' + (lastEventsUpdatedAt ? ' ' + formatAgo(lastEventsUpdatedAt) : ''));
+    } else {
+      bits.push('events unavailable');
+      bad = true;
+    }
+    parts.push('Live source: ' + bits.join(' · '));
+  }
+  if (lastRefreshAt) parts.push('page refresh ' + formatClock(lastRefreshAt));
+  const msg = parts.join(' · ');
+  [live, hud, mob].forEach(el => {
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.toggle('bad', bad);
+  });
+}
+
+function renderStatusPanel() {
+  const body = document.getElementById('status-body');
+  const footer = document.getElementById('status-footer');
+  if (!body) return;
+  const now = Date.now();
+  const agents = (lastActivityBoard && Array.isArray(lastActivityBoard.agents))
+    ? lastActivityBoard.agents : placeholderAgents();
+  const byId = Object.fromEntries(agents.map(a => [a.id, a]));
+  body.textContent = '';
+  KNOWN_AGENTS.forEach(meta => {
+    const row = byId[meta.id] || {
+      id: meta.id, name: meta.name, task: 'Not shared here yet',
+      status: 'offline', lastCheckIn: null
+    };
+    const presence = derivePresence(row, now);
+    const el = document.createElement('div');
+    el.className = 'op-row';
+    const dot = document.createElement('div');
+    dot.className = 'op-dot ' + presence.kind;
+    const main = document.createElement('div');
+    const name = document.createElement('div');
+    name.className = 'op-name';
+    name.textContent = row.name || meta.name;
+    const badge = document.createElement('span');
+    badge.className = 'op-badge ' + presence.kind;
+    badge.textContent = presence.badge;
+    name.appendChild(badge);
+    const task = document.createElement('div');
+    task.className = 'op-task';
+    task.textContent = presence.task;
+    const when = document.createElement('div');
+    when.className = 'op-when';
+    when.textContent = presence.when;
+    main.appendChild(name);
+    main.appendChild(task);
+    main.appendChild(when);
+    el.appendChild(dot);
+    el.appendChild(main);
+    body.appendChild(el);
+
+    setOrbColor(meta.id, presence.kind);
+    const hit = deskHitByAgent[meta.id];
+    if (hit) {
+      const bits = [presence.badge];
+      if (row.task) bits.push(row.task);
+      bits.push(presence.when);
+      hit.userData.sub = bits.join(' · ');
+    }
+    const pose = computeAvatarKind(meta.id, presence, now);
+    applyAvatarPose(meta.id, pose, presence);
+  });
+
+  if (!activityAvailable) {
+    footer.textContent = 'Status file unavailable on this device — not live';
+  } else {
+    footer.textContent = 'Status comes from agents’ check-ins; no constant polling by bots';
+  }
+  refreshSelectedLabel();
+  updateLiveSourceUI();
+}
+
+function typeLabel(ev, now = Date.now()) {
+  const t = ev && ev.type;
+  if (t === 'command') return 'command';
+  if (t === 'working') return 'working';
+  if (t === 'message') return 'message';
+  if (t === 'complete') return 'complete';
+  if (t === 'schedule') return 'schedule';
+  if (t === 'meeting') {
+    return isMeetingAt(ev, now) ? 'meeting · live' : 'meeting · timed';
+  }
+  return t || 'event';
+}
+
+function typeClass(ev, now = Date.now()) {
+  const t = ev && ev.type;
+  if (t === 'schedule') return 'schedule';
+  if (t === 'meeting' && isMeetingAt(ev, now)) return 'meeting-live';
+  return '';
+}
+
+function actorShort(id) {
+  if (!id) return '?';
+  if (AGENT_BY_ID[id]) return AGENT_BY_ID[id].short;
+  if (id === 'all-desks') return 'all desks';
+  if (id === 'meeting-room') return 'meeting room';
+  if (id === 'system') return 'system';
+  return String(id);
+}
+
+function renderFeedPanel() {
+  const list = document.getElementById('feed-list');
+  const detail = document.getElementById('feed-detail');
+  const footer = document.getElementById('feed-footer');
+  if (!list) return;
+  list.textContent = '';
+  const now = Date.now();
+  const evs = eventsNewestFirst().slice(0, 30);
+  if (!evs.length) {
+    const li = document.createElement('li');
+    const p = document.createElement('div');
+    p.className = 'ev-text';
+    p.textContent = eventsAvailable
+      ? 'No office events yet.'
+      : (canFetchShared() ? 'Event file not readable here.' : 'Open via local server to watch the feed.');
+    li.appendChild(p);
+    list.appendChild(li);
+  } else {
+    evs.forEach(ev => {
+      const li = document.createElement('li');
+      if (selectedEventId === ev.id) li.classList.add('selected');
+      const top = document.createElement('div');
+      top.className = 'ev-top';
+      const typ = document.createElement('span');
+      typ.className = 'ev-type';
+      const tc = typeClass(ev, now);
+      if (tc) typ.classList.add(tc);
+      typ.textContent = typeLabel(ev, now);
+      const when = document.createElement('span');
+      when.textContent = formatAgo(ev.at, now);
+      when.title = ev.at || '';
+      top.appendChild(typ);
+      top.appendChild(when);
+      const meta = document.createElement('div');
+      meta.className = 'ev-meta';
+      const who = actorShort(ev.actor);
+      const to = ev.to ? (' → ' + actorShort(ev.to)) : '';
+      meta.textContent = who + to;
+      const txt = document.createElement('div');
+      txt.className = 'ev-text';
+      txt.textContent = escapeText(ev.text || '');
+      li.appendChild(top);
+      li.appendChild(meta);
+      li.appendChild(txt);
+      li.addEventListener('click', () => {
+        selectedEventId = ev.id;
+        const lines = [
+          'Type: ' + typeLabel(ev, Date.now()),
+          'Actor: ' + (ev.actor || '—'),
+          ev.to ? ('To: ' + ev.to) : null,
+          'When: ' + (ev.at || '—') + ' (' + formatAgo(ev.at) + ')',
+          ev.startsAt ? 'Starts: ' + ev.startsAt : null,
+          ev.endsAt ? 'Ends: ' + ev.endsAt : null,
+          (ev.type === 'meeting')
+            ? (isMeetingAt(ev) ? 'Interval: live now' : 'Interval: not active now')
+            : null,
+          (ev.type === 'schedule') ? 'Note: schedule is not attendance' : null,
+          '',
+          escapeText(ev.text || ''),
+        ].filter(x => x != null && x !== false);
+        detail.textContent = lines.join('\n');
+        detail.classList.add('open');
+        renderFeedPanel();
+      });
+      list.appendChild(li);
+    });
+    /* newest first: keep top in view after refresh */
+    list.parentElement.scrollTop = 0;
+  }
+  if (!eventsAvailable) {
+    footer.textContent = 'Event file unavailable on this device — not live';
+  } else {
+    footer.textContent = 'Newest first · commands and check-ins · refreshes while open';
+  }
+}
+
+function buildWatchMap() {
+  const map = document.getElementById('watch-map');
+  if (!map || map.dataset.ready) return;
+  map.dataset.ready = '1';
+  /* schematic % positions */
+  const spots = [
+    { id: 'lounge', label: 'Lounge', x: 28, y: 58 },
+    { id: 'meeting', label: 'Meeting', x: 72, y: 70 },
+    { id: 'game-designer', label: 'Game', x: 18, y: 22 },
+    { id: 'brook', label: 'Brook', x: 38, y: 16 },
+    { id: 'chief-of-staff', label: 'Chief', x: 58, y: 18 },
+    { id: 'app-designer', label: 'App', x: 78, y: 24 },
+    { id: 'trading', label: 'Trading', x: 88, y: 52 },
+  ];
+  spots.forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'w2-spot';
+    el.style.left = s.x + '%';
+    el.style.top = s.y + '%';
+    const ring = document.createElement('div');
+    ring.className = 'ring';
+    const nm = document.createElement('div');
+    nm.textContent = s.label;
+    el.appendChild(ring);
+    el.appendChild(nm);
+    map.appendChild(el);
+  });
+  KNOWN_AGENTS.forEach(a => {
+    const el = document.createElement('div');
+    el.className = 'w2-bot';
+    el.id = 'w2-' + a.id;
+    el.style.left = '28%';
+    el.style.top = '58%';
+    const blob = document.createElement('div');
+    blob.className = 'blob';
+    const nm = document.createElement('div');
+    nm.className = 'nm';
+    nm.textContent = a.short;
+    el.appendChild(blob);
+    el.appendChild(nm);
+    map.appendChild(el);
+  });
+}
+
+const W2_POS = {
+  lounge: [28, 58],
+  meeting: [72, 70],
+  'game-designer': [18, 22],
+  brook: [38, 16],
+  'chief-of-staff': [58, 18],
+  'app-designer': [78, 24],
+  trading: [88, 52],
+};
+
+function renderWatch2d() {
+  buildWatchMap();
+  const now = Date.now();
+  const agents = (lastActivityBoard && Array.isArray(lastActivityBoard.agents))
+    ? lastActivityBoard.agents : placeholderAgents();
+  const byId = Object.fromEntries(agents.map(a => [a.id, a]));
+  KNOWN_AGENTS.forEach(meta => {
+    const el = document.getElementById('w2-' + meta.id);
+    if (!el) return;
+    const row = byId[meta.id] || { status: 'offline', lastCheckIn: null, task: '' };
+    const presence = derivePresence(row, now);
+    const pose = computeAvatarKind(meta.id, presence, now);
+    let key = 'lounge';
+    if (pose === 'meeting') key = 'meeting';
+    else if (pose === 'desk') key = meta.id;
+    const xy = W2_POS[key] || W2_POS.lounge;
+    el.style.left = xy[0] + '%';
+    el.style.top = xy[1] + '%';
+    el.classList.remove('working', 'idle', 'meeting', 'nocheck');
+    el.classList.add(presenceColorKind(presence, pose));
+  });
+}
+
+async function refreshOfficeBoards() {
+  if (document.visibilityState === 'hidden') return;
+  lastRefreshAt = Date.now();
+  if (!canFetchShared()) {
+    activityAvailable = false;
+    eventsAvailable = false;
+    if (!lastActivityBoard) lastActivityBoard = { version: 1, agents: placeholderAgents() };
+    if (!lastEventsBoard) lastEventsBoard = { version: 1, events: [] };
+    renderStatusPanel();
+    renderFeedPanel();
+    renderWatch2d();
+    updateLiveSourceUI();
+    return;
+  }
+  try {
+    const data = await fetchFirstJson(resolveActivityUrls());
+    if (data && Array.isArray(data.agents)) {
+      lastActivityBoard = data;
+      activityAvailable = true;
+      lastActivityUpdatedAt = data.updatedAt || null;
+    }
+  } catch (_) {
+    activityAvailable = false;
+    if (!lastActivityBoard) lastActivityBoard = { version: 1, agents: placeholderAgents() };
+  }
+  try {
+    const data = await fetchFirstJson(resolveEventsUrls());
+    if (data && Array.isArray(data.events)) {
+      lastEventsBoard = data;
+      eventsAvailable = true;
+      lastEventsUpdatedAt = data.updatedAt || null;
+    }
+  } catch (_) {
+    eventsAvailable = false;
+    if (!lastEventsBoard) lastEventsBoard = { version: 1, events: [] };
+  }
+  renderStatusPanel();
+  renderFeedPanel();
+  renderWatch2d();
+  updateLiveSourceUI();
+}
+
+function wirePanelToggles() {
+  function bind(btnId, cardId) {
+    const btn = document.getElementById(btnId);
+    const card = document.getElementById(cardId);
+    if (!btn || !card) return;
+    btn.addEventListener('click', () => {
+      const collapsed = card.classList.toggle('collapsed');
+      btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      btn.textContent = collapsed ? 'Expand' : 'Collapse';
+    });
+  }
+  bind('status-toggle', 'status-card');
+  bind('feed-toggle', 'feed-card');
+  bind('watch-toggle', 'watch2d');
+}
+
+function applyMobileLayout() {
+  const narrow = window.matchMedia('(max-width: 640px)').matches;
+  document.body.classList.toggle('mobile-ui', narrow);
+  if (narrow) {
+    /* Default phone view: readable status/feed; 3D off until asked. */
+    if (!document.body.dataset.scenePref) {
+      document.body.classList.add('scene-hidden');
+      const btn = document.getElementById('scene-toggle');
+      if (btn) {
+        btn.textContent = 'Show 3D';
+        btn.setAttribute('aria-pressed', 'false');
+      }
+    }
+  } else {
+    document.body.classList.remove('scene-hidden');
+  }
+}
+
+function wireMobileChrome() {
+  const tabs = document.querySelectorAll('#panel-tabs [data-tab]');
+  function showTab(name) {
+    tabs.forEach(btn => {
+      const on = btn.getAttribute('data-tab') === name;
+      btn.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    document.querySelectorAll('#office-panels .op-card').forEach(card => {
+      card.classList.toggle('mobile-active', card.getAttribute('data-panel') === name);
+    });
+    const watch = document.getElementById('watch2d');
+    if (watch) watch.classList.toggle('mobile-active', name === 'map');
+  }
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => showTab(btn.getAttribute('data-tab')));
+  });
+  const sceneBtn = document.getElementById('scene-toggle');
+  if (sceneBtn) {
+    sceneBtn.addEventListener('click', () => {
+      const hidden = document.body.classList.toggle('scene-hidden');
+      document.body.dataset.scenePref = hidden ? 'hidden' : 'shown';
+      sceneBtn.textContent = hidden ? 'Show 3D' : 'Hide 3D';
+      sceneBtn.setAttribute('aria-pressed', hidden ? 'false' : 'true');
+      /* When showing 3D on phone, collapse to map so OrbitControls has room. */
+      if (!hidden) showTab('map');
+    });
+  }
+  applyMobileLayout();
+  window.addEventListener('resize', applyMobileLayout);
+}
+
+installDeskStatusHooks();
+KNOWN_AGENTS.forEach(makeAvatarMarker);
+wirePanelToggles();
+wireMobileChrome();
+buildWatchMap();
+refreshOfficeBoards();
+setInterval(() => {
+  if (document.visibilityState === 'visible') refreshOfficeBoards();
+}, 15000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refreshOfficeBoards();
+});
+
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  /* biolume pulse */
+  biolumeLights.forEach(b => {
+    b.light.intensity = b.base * (0.85 + 0.15 * Math.sin(t * 1.4 + b.phase));
+  });
+
+  /* steam wisps */
+  steams.forEach(s => {
+    s.mesh.position.y = s.baseY + Math.sin(t * 1.8 + s.phase) * 0.08 + 0.05;
+    s.mesh.material.opacity = 0.2 + 0.15 * Math.sin(t * 2.2 + s.phase);
+    s.mesh.scale.setScalar(0.8 + 0.3 * Math.sin(t * 1.5 + s.phase));
+  });
+
+  /* avatar markers ease toward real targets (file-backed only) */
+  Object.keys(avatarByAgent).forEach(id => {
+    const g = avatarByAgent[id];
+    const tgt = avatarTarget[id];
+    if (g && tgt) g.position.lerp(tgt, 0.04);
+    if (g && g.userData.label) g.userData.label.lookAt(camera.position);
+  });
+
+  /* gentle water shimmer via emissive */
+  waterMain.material.emissiveIntensity = 0.12 + 0.06 * Math.sin(t * 2.0);
+
+  /* crystal pulse */
+  crystalLight.intensity = 0.55 + 0.25 * Math.sin(t * 1.7);
+  crystal.material.emissiveIntensity = 0.7 + 0.3 * Math.sin(t * 1.7);
+
+  /* focus ease */
+  if (focusTarget) {
+    focusT = Math.min(1, focusT + 0.025);
+    camera.position.lerp(focusTarget, 0.04);
+    if (focusLook) controls.target.lerp(focusLook, 0.05);
+    if (focusT >= 1) focusTarget = null;
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

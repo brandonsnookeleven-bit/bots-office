@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "updatedAt": "2026-11-06T20:03:17.111590+00:00",
+  "agents": [
+    {
+      "id": "chief-of-staff",
+      "name": "Chief of Staff",
+      "task": "Connecting visible commands, desk work and meetings to the 3D office",
+      "status": "active",
+      "lastCheckIn": "2026-11-06T06:53:57.042336+00:00"
+    },
+    {
+      "id": "game-designer",
+      "name": "Game Designer",
+      "task": "Finish and integrate Rivulet visual fixes, validate clearer water/tree/caves, ship new APK",
+      "status": "active",
+      "lastCheckIn": "2026-11-06T20:03:17.111590+00:00"
+    },
+    {
+      "id": "brook",
+      "name": "Brook \u00b7 Kickstarter Manager",
+      "task": "Verified Android publishing migration plan and platform requirements; awaiting Apple hardware access answer",
+      "status": "idle",
+      "lastCheckIn": "2026-11-06T06:53:07.933198+00:00"
+    },
+    {
+      "id": "app-designer",
+      "name": "App Designer",
+      "task": "Built and statically verified the real-activity office and locked-down dual-stack read-only server; browser rendering and public phone link remain blocked at box network routing, awaiting supported recovery choice.",
+      "status": "idle",
+      "lastCheckIn": "2026-11-06T07:12:01.790770+00:00"
+    },
+    {
+      "id": "trading",
+      "name": "Trading",
+      "task": "exp_I check: IDLE FLAT cash$12.36 eq$36.23 helpers up",
+      "status": "idle",
+      "lastCheckIn": "2026-11-06T07:14:17.935462+00:00"
+    }
+  ]
+}
