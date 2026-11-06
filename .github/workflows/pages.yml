@@ -1,0 +1,25 @@
+name: Publish office
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['index.html', 'activity.json', 'events.json', 'vendor/**', '.github/workflows/pages.yml', '.nojekyll']
+permissions:
+  contents: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out approved office files
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        id: pages
+        uses: actions/configure-pages@v5
+        continue-on-error: true
+      - name: Publish
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
